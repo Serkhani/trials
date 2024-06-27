@@ -1,0 +1,255 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:starter_project/src/core/routes/routes_config.dart';
+import 'package:starter_project/src/core/utils/custom_extensions.dart';
+import 'package:starter_project/src/core/utils/custom_snackbar.dart';
+import 'package:starter_project/src/core/validator/validator.dart';
+import 'package:starter_project/src/core/widgets/custom_button.dart';
+import 'package:starter_project/src/core/widgets/custom_textformfield.dart';
+import 'package:starter_project/src/features/blog/presentation/bloc/bloc.dart';
+import 'package:starter_project/src/features/blog/presentation/pages/edit_blog_screen.dart';
+
+class BlogDetails extends StatefulWidget {
+  static const String routeName = 'blog-details-screen';
+  final int id;
+
+  const BlogDetails({super.key, required this.id});
+
+  @override
+  BlogDetailsState createState() => BlogDetailsState();
+}
+
+class BlogDetailsState extends State<BlogDetails> {
+  final _commentKey = GlobalKey<FormState>();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        leading: BackButton(
+          onPressed: () {
+            if (context.read<BlogBloc>().state is ViewBlog) {
+              context.read<BlogBloc>().add(ViewMyBlogsEvent());
+              context.read<TagBloc>().add(const ViewTagsEvent());
+              popScreen(context);
+            }
+          },
+        ),
+        toolbarHeight: 50,
+        backgroundColor: Colors.white,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.share),
+            onPressed: () {},
+          ),
+        ],
+      ),
+      body: BlocConsumer<BlogBloc, BlogState>(
+        listener: (context, state) {
+          if (state is BlogDeleted) {
+            CustomSnackBar.errorSnackBar(
+              context: context,
+              message: 'Blog has been deleted',
+            );
+            popScreen(context);
+          }
+          if (state is BlogDeleteFailure) {
+            context.read<BlogBloc>().add(
+                  ViewBlogEvent(id: widget.id),
+                );
+          }
+        },
+        builder: (context, state) {
+          return (state is BlogLoading)
+              ? const Center(
+                  child: CircularProgressIndicator(),
+                )
+              : (state is ViewBlog)
+                  ? SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(
+                                  children: state.blog.tags!
+                                      .map(
+                                        (tag) => Container(
+                                          margin: const EdgeInsets.all(2),
+                                          child: ElevatedButton(
+                                            onPressed: () {},
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: Colors.black54,
+                                              foregroundColor: Colors.white,
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 14,
+                                                      vertical: 6),
+                                              minimumSize: const Size(0, 0),
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                              ),
+                                            ),
+                                            child: Text(
+                                              tag.label,
+                                              style:
+                                                  const TextStyle(fontSize: 10),
+                                            ),
+                                          ),
+                                        ),
+                                      )
+                                      .toList(),
+                                ),
+                                const Text(
+                                  '50 minutes ago',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Padding(
+                            padding:
+                                const EdgeInsets.symmetric(horizontal: 16.0),
+                            child: Text(
+                              state.blog.title,
+                              style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Padding(
+                            padding:
+                                const EdgeInsets.symmetric(horizontal: 16.0),
+                            child: Text(
+                              state.blog.userAccount!.email,
+                              style: const TextStyle(
+                                color: Color.fromARGB(255, 17, 12, 12),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 30),
+                          Image.asset(
+                            'assets/images/pic1.png',
+                            fit: BoxFit.cover,
+                          ),
+                          const SizedBox(height: 23),
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 0, 16, 40),
+                            child: Text(
+                              state.blog.body,
+                              style: const TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.black,
+                                  fontWeight: FontWeight.w300),
+                            ),
+                          ),
+                          CustomButton(
+                            text: 'Add Comment',
+                            height: 40,
+                            textStyle: context.textTheme.bodyMedium!.copyWith(
+                              fontSize: 9,
+                            ),
+                            width: 70,
+                            onPressed: () {
+                              // show pop up that takes user comment
+                              showModalBottomSheet(
+                                context: context,
+                                builder: (context) {
+                                  return Form(
+                                    key: _commentKey,
+                                    child: SizedBox(
+                                      height: context.height * 0.7,
+                                      child: Column(
+                                        children: [
+                                          CustomTextFormField(
+                                            textFormFieldType:
+                                                TextFormFieldType.regular,
+                                            hintText: 'Comment',
+                                            validate: (comment) =>
+                                                CustomValidator.isNotEmpty(
+                                                    comment ?? ""),
+                                          ),
+                                          const Spacer(),
+                                          CustomButton(
+                                            text: 'Submit',
+                                            height: 40.0,
+                                            onPressed: () {
+                                              // submit comment
+                                              final valid =
+                                                  CustomValidator.validateForm(
+                                                      _commentKey);
+                                              if (valid) {
+                                                Future.delayed(
+                                                    const Duration(seconds: 2));
+                                                CustomSnackBar.successSnackBar(
+                                                    context: context,
+                                                    message:
+                                                        'Comment added successfully');
+                                                popScreen(context);
+                                              }
+                                            },
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                    )
+                  : (state is BlogFailure)
+                      ? GestureDetector(
+                          onTap: () async {
+                            context.read<BlogBloc>().add(
+                                  ViewBlogEvent(id: widget.id),
+                                );
+                          },
+                          child: Center(
+                            child: Text(
+                              state.message,
+                              style: context.textTheme.bodySmall!.copyWith(
+                                color: context.colorScheme.error,
+                              ),
+                            ),
+                          ),
+                        )
+                      : Container();
+        },
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          switchScreen(
+            context: context,
+            routeName: EditBlogScreen.routeName,
+            extra: (context.read<BlogBloc>().state as ViewBlog).blog,
+          );
+        },
+        backgroundColor: const Color(0xFF436CC9),
+        child: const Icon(
+          Icons.edit,
+          color: Colors.white,
+        ),
+      ),
+    );
+  }
+
+  @override
+  void initState() {
+    context.read<BlogBloc>().add(
+          ViewBlogEvent(id: widget.id),
+        );
+    super.initState();
+  }
+}
